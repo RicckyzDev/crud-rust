@@ -1,11 +1,14 @@
-use super::models::{AllUsers, RegisterUser, UpdateUser};
+use super::models::{AllUsers, JsonWebTokenClaims, LoginUser, RegisterUser, UpdateUser};
 use crate::AppState;
+use crate::services::auth::auth::AuthenticatedUser;
 use actix_web::{HttpResponse, Responder, delete, get, post, put, web};
 use bcrypt::{DEFAULT_COST, hash, verify};
+use chrono::{Duration, Utc};
+use serde_json::json;
 use sqlx::{Pool, Postgres};
 
 #[get("/users")]
-async fn get_all_users(state: web::Data<AppState>) -> impl Responder {
+async fn get_all_users(state: web::Data<AppState>, _auth: AuthenticatedUser) -> impl Responder {
     let result = sqlx::query!("SELECT * FROM users")
         .fetch_all(&state.postgres_client)
         .await;
@@ -93,9 +96,53 @@ async fn delete_user(state: web::Data<AppState>, id: web::Path<i32>) -> impl Res
     }
 }
 
+#[post("/users/login")]
+async fn login_user(state: web::Data<AppState>, body: web::Json<LoginUser>) -> impl Responder {
+    if body.email.is_empty() || body.password.is_empty() {
+        return HttpResponse::BadRequest().finish();
+    }
+
+    let result = sqlx::query!("SELECT * FROM users WHERE email = $1", body.email)
+        .fetch_one(&state.postgres_client)
+        .await;
+
+    match result {
+        Ok(user) => {
+            let password_valid = bcrypt::verify(body.password.clone(), &user.password)
+                .expect("Error verifying password");
+
+            if password_valid {
+                let claims = JsonWebTokenClaims {
+                    sub: user.id,
+                    exp: (Utc::now() + Duration::days(1)).timestamp() as usize,
+                    name: user.username,
+                    email: user.email,
+                };
+
+                let token = jsonwebtoken::encode(
+                    &jsonwebtoken::Header::default(),
+                    &claims,
+                    &jsonwebtoken::EncodingKey::from_secret(state.json_web_token.as_ref()),
+                )
+                .expect("Error creating token");
+
+                return HttpResponse::Ok().json(json!({
+                    "data": token
+                }));
+            } else {
+                HttpResponse::NotFound().json(json!({"message": "User not found" }))
+            }
+        }
+        Err(_) => HttpResponse::NotFound().json(json!({
+            "message": "User not found"
+        })),
+    }
+}
+
 pub fn config_users_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(get_all_users);
     cfg.service(register_user);
     cfg.service(update_user);
     cfg.service(delete_user);
+    cfg.service(login_user);
 }

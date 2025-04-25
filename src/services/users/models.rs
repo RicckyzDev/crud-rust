@@ -26,3 +26,11 @@ pub struct UpdateUser {
     pub email: String,
     pub password: String,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JsonWebTokenClaims {
+    pub sub: i32,
+    pub exp: usize,
+    pub name: String,
+    pub email: String,
+}
