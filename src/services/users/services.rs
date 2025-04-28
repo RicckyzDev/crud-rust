@@ -140,9 +140,13 @@ async fn login_user(state: web::Data<AppState>, body: web::Json<LoginUser>) -> i
 }
 
 pub fn config_users_routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(get_all_users);
-    cfg.service(register_user);
-    cfg.service(update_user);
-    cfg.service(delete_user);
-    cfg.service(login_user);
+    let scope = web::scope("/api");
+    cfg.service(
+        scope
+            .service(get_all_users)
+            .service(register_user)
+            .service(update_user)
+            .service(delete_user)
+            .service(login_user),
+    );
 }
