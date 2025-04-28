@@ -8,6 +8,7 @@ mod databases {
 }
 
 mod services;
+mod utils;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -41,6 +42,7 @@ async fn main() -> std::io::Result<()> {
             }))
             .service(hello) // <-- Adicione o serviço aqui
             .configure(services::users::services::config_users_routes) // <-- Adicione a configuração de rotas aqui)
+            .configure(services::customer::services::config_customers_routes) // <-- Adicione a configuração de rotas aqui)
             .wrap(cors)
     })
     .bind(("127.0.0.1", 8081))?
