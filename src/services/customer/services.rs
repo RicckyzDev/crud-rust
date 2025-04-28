@@ -88,4 +88,5 @@ pub async fn update_customer(
 pub fn config_customers_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(fetch_all_customers);
     cfg.service(create_customer);
+    cfg.service(update_customer);
 }
