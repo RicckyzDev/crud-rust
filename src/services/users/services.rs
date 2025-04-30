@@ -1,8 +1,8 @@
 use super::models::{AllUsers, JsonWebTokenClaims, LoginUser, RegisterUser, UpdateUser};
-use crate::AppState;
 use crate::services::auth::auth::AuthenticatedUser;
-use actix_web::{HttpResponse, Responder, delete, get, post, put, web};
-use bcrypt::{DEFAULT_COST, hash, verify};
+use crate::AppState;
+use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
+use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::{Duration, Utc};
 use serde_json::json;
 use sqlx::{Pool, Postgres};

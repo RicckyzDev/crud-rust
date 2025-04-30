@@ -1,47 +1,71 @@
-use super::models::{AllCustomers, CreateCustomer, UpdateCustomer};
-use crate::AppState;
+use super::dto::CustomerResponse;
+use super::models::{AllCustomers, CreateCustomer, FilterOptions, UpdateCustomer};
 use crate::services::auth::auth::AuthenticatedUser;
 use crate::utils::response::success_response;
-use actix_web::{HttpResponse, Responder, delete, get, post, put, web};
+use crate::AppState;
+use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
 use chrono::{Duration, Utc};
 use serde_json::json;
 use sqlx::{Pool, Postgres};
-use time::PrimitiveDateTime;
 use time::macros::format_description;
+use time::PrimitiveDateTime;
 
 #[get("/customers")]
 pub async fn fetch_all_customers(
+    opts: web::Query<FilterOptions>,
     state: web::Data<AppState>,
     _auth: AuthenticatedUser,
 ) -> impl Responder {
-    let customers = sqlx::query!("SELECT * FROM customers")
-        .fetch_all(&state.postgres_client)
-        .await;
+    let limit = opts.limit.unwrap_or(10);
+    let offset = (opts.page.unwrap_or(1) - 1) * limit;
 
-    match customers {
+    match sqlx::query_as!(
+        AllCustomers,
+        "SELECT * FROM customers ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+        limit as i32,
+        offset as i32
+    )
+    .fetch_all(&state.postgres_client)
+    .await
+    {
         Ok(customers) => {
-            let format = format_description!("[day]/[month]/[year] [hour]:[minute]:[second]"); // Formato BR
+            let total_count = sqlx::query!("SELECT COUNT(*) as count FROM customers")
+                .fetch_one(&state.postgres_client)
+                .await
+                .unwrap()
+                .count;
 
-            let customers: Vec<AllCustomers> = customers
-                .iter()
-                .map(|customer| AllCustomers {
-                    id: customer.id,
-                    name: customer.name.clone(),
-                    email: customer.email.clone(),
-                    created_at: customer
-                        .created_at
-                        .as_ref() // Converte de Option para referência
-                        .map(|dt| {
-                            // Tenta formatar o timestamp, se falhar, retorna uma string padrão
-                            dt.format(&format)
-                                .unwrap_or_else(|_| "Erro ao formatar".to_string()) // Trata o erro de formatação
-                        })
-                        .unwrap_or_else(|| "Data inválida".to_string()), // Caso seja None, coloca uma data padrão
-                })
-                .collect();
-            HttpResponse::Ok().json(customers)
+            // 🚀 Aqui converte todos os AllCustomers para CustomerResponse
+            let customers: Vec<CustomerResponse> =
+                customers.into_iter().map(CustomerResponse::from).collect();
+
+            let response = json!({
+                "total_count": total_count,
+                "customers": customers,
+            });
+
+            HttpResponse::Ok().json(response)
         }
         Err(_) => HttpResponse::InternalServerError().finish(),
+    }
+}
+
+#[get("/customers/{id}")]
+pub async fn fetch_customer_by_id(
+    state: web::Data<AppState>,
+    id: web::Path<i32>,
+) -> impl Responder {
+    let customer = sqlx::query_as!(
+        AllCustomers,
+        "SELECT * FROM customers WHERE id = $1",
+        id.into_inner()
+    )
+    .fetch_one(&state.postgres_client)
+    .await;
+
+    match customer {
+        Ok(customer) => HttpResponse::Ok().json(CustomerResponse::from(customer)),
+        Err(_) => HttpResponse::NotFound().finish(),
     }
 }
 
@@ -90,6 +114,7 @@ pub fn config_customers_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
         scope
             .service(fetch_all_customers)
+            .service(fetch_customer_by_id)
             .service(create_customer)
             .service(update_customer),
     );

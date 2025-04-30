@@ -1,5 +1,5 @@
 use actix_cors::Cors;
-use actix_web::{App, HttpResponse, HttpServer, Responder, get, web};
+use actix_web::{get, middleware::Logger, web, App, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use sqlx::{Pool, Postgres};
 
@@ -7,6 +7,7 @@ mod databases {
     pub mod postgres_connection;
 }
 
+mod exceptions;
 mod services;
 mod utils;
 
@@ -23,7 +24,13 @@ async fn hello() -> impl Responder {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "actix_web=info");
+    }
+
     dotenv().ok();
+    env_logger::init();
+
     let _pool = databases::postgres_connection::start_connection().await;
     let json_web_token_environment =
         std::env::var("JSON_WEB_TOKEN_SECRET").expect("JSON_WEB_TOKEN must be set");
@@ -43,6 +50,8 @@ async fn main() -> std::io::Result<()> {
             .service(hello) // <-- Adicione o serviço aqui
             .configure(services::users::services::config_users_routes) // <-- Adicione a configuração de rotas aqui)
             .configure(services::customer::services::config_customers_routes) // <-- Adicione a configuração de rotas aqui)
+            .wrap(Logger::default())
+            .wrap(exceptions::errorHandleMiddleware::ErrorHandlerMiddleware)
             .wrap(cors)
     })
     .bind(("127.0.0.1", 8081))?
