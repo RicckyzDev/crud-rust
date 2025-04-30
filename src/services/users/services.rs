@@ -4,7 +4,9 @@ use crate::AppState;
 use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
 use bcrypt::{hash, verify, DEFAULT_COST};
 use chrono::{Duration, Utc};
+use log::error;
 use serde_json::json;
+use sqlx::Error;
 use sqlx::{Pool, Postgres};
 
 #[get("/users")]
@@ -51,7 +53,18 @@ async fn register_user(
             name: user.username,
             email: user.email,
         }),
-        Err(_) => HttpResponse::InternalServerError().finish(),
+
+        Err(e) => {
+            error!("Erro ao inserir usuário: {:?}", e); // log completo
+
+            if let Error::Database(db_err) = &e {
+                if db_err.code().as_deref() == Some("23505") {
+                    return HttpResponse::Conflict().body("Usuário já existe.");
+                }
+            }
+
+            HttpResponse::InternalServerError().body("Erro interno ao inserir usuário.")
+        }
     }
 }
 

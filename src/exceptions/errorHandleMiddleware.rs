@@ -53,8 +53,8 @@ where
                 Ok(res) => Ok(res.map_into_left_body()),
                 Err(err) => {
                     let error_response = HttpResponse::InternalServerError()
-                        .json(serde_json::json!({ "error": format!("{}", err) }))
-                        .map_into_right_body();
+                        .body(format!("Erro interno: {}", err)) // <-- body simples
+                        .map_into_right_body(); // <-- pode manter isso se ainda estiver usando EitherBody
 
                     let dummy_req = actix_web::test::TestRequest::default().to_http_request();
                     let dummy_service_req =

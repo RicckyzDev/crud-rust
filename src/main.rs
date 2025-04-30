@@ -29,8 +29,10 @@ async fn main() -> std::io::Result<()> {
     }
 
     dotenv().ok();
-    env_logger::init();
-
+    env_logger::Builder::from_default_env()
+        .filter_level(log::LevelFilter::Info) // Nível mínimo de log
+        .format_timestamp(None)
+        .init();
     let _pool = databases::postgres_connection::start_connection().await;
     let json_web_token_environment =
         std::env::var("JSON_WEB_TOKEN_SECRET").expect("JSON_WEB_TOKEN must be set");
@@ -50,8 +52,8 @@ async fn main() -> std::io::Result<()> {
             .service(hello) // <-- Adicione o serviço aqui
             .configure(services::users::services::config_users_routes) // <-- Adicione a configuração de rotas aqui)
             .configure(services::customer::services::config_customers_routes) // <-- Adicione a configuração de rotas aqui)
-            .wrap(Logger::default())
             .wrap(exceptions::errorHandleMiddleware::ErrorHandlerMiddleware)
+            .wrap(Logger::default())
             .wrap(cors)
     })
     .bind(("127.0.0.1", 8081))?
