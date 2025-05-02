@@ -2,6 +2,12 @@ use actix_cors::Cors;
 use actix_web::{get, middleware::Logger, web, App, HttpResponse, HttpServer, Responder};
 use dotenv::dotenv;
 use sqlx::{Pool, Postgres};
+use utoipa::{
+    openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
+    Modify, OpenApi, ToSchema,
+};
+
+use utoipa_swagger_ui::SwaggerUi;
 
 mod databases {
     pub mod postgres_connection;

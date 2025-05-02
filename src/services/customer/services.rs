@@ -1,6 +1,7 @@
 use super::dto::CustomerResponse;
 use super::models::{AllCustomers, CreateCustomer, FilterOptions, UpdateCustomer};
 use crate::services::auth::auth::AuthenticatedUser;
+use crate::services::auth::extractorrole::AdminGuard;
 use crate::utils::response::success_response;
 use crate::AppState;
 use actix_web::{delete, get, post, put, web, HttpResponse, Responder};

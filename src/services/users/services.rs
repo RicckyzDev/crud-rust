@@ -1,5 +1,6 @@
 use super::models::{AllUsers, JsonWebTokenClaims, LoginUser, RegisterUser, UpdateUser};
 use crate::services::auth::auth::AuthenticatedUser;
+use crate::services::auth::extractorrole::AdminGuard;
 use crate::AppState;
 use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
 use bcrypt::{hash, verify, DEFAULT_COST};
@@ -10,7 +11,11 @@ use sqlx::Error;
 use sqlx::{Pool, Postgres};
 
 #[get("/users")]
-async fn get_all_users(state: web::Data<AppState>, _auth: AuthenticatedUser) -> impl Responder {
+async fn get_all_users(
+    state: web::Data<AppState>,
+    _auth: AuthenticatedUser,
+    _admin: AdminGuard,
+) -> impl Responder {
     let result = sqlx::query!("SELECT * FROM users")
         .fetch_all(&state.postgres_client)
         .await;
@@ -130,6 +135,8 @@ async fn login_user(state: web::Data<AppState>, body: web::Json<LoginUser>) -> i
                     exp: (Utc::now() + Duration::days(1)).timestamp() as usize,
                     name: user.username,
                     email: user.email,
+                    user_id: user.id,
+                    company_id: user.company_id.expect("Company ID not found"),
                 };
 
                 let token = jsonwebtoken::encode(

@@ -33,4 +33,6 @@ pub struct JsonWebTokenClaims {
     pub exp: usize,
     pub name: String,
     pub email: String,
+    pub user_id: i32,
+    pub company_id: i64,
 }
