@@ -1,4 +1,4 @@
-# nvimtest
+# Gerenciamento de Clientes
 
 CRUD para gerenciamento de clientes desenvolvido em Rust, utilizando Actix-Web, autenticação JWT e controle de permissões por role (papel de usuário). O banco de dados é PostgreSQL, executado via Docker.
 
